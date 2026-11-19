@@ -45,6 +45,29 @@ sudo ufw allow 443/tcp && sudo ufw allow 443/udp
 
 主機在分享器後面的話，記得把 TCP/UDP 443 轉發到這台機器。
 
+## 讓 VM 自己撥 PPPoE（PVE + 中華電信動態 IP）
+
+中華電信光世代可以同時撥多條動態 IP，所以可以讓這台 VM 自己撥一條，取得專屬的公網 IP，再搭配 DuckDNS 讓客戶端追得到它。
+
+1. 在 PVE 幫 VM 加第二張網卡，接到**直通數據機**的 bridge。不確定是哪一個的話，在 PVE 主機上執行 `bridge fdb show | grep <數據機 MAC>` 找。
+2. 在 VM 裡執行：
+
+   ```bash
+   sudo PPPOE_USER=12345678@hinet.net PPPOE_PASS=xxxx pppoe/install.sh
+   ```
+
+腳本會設定好這些東西：
+
+| 檔案 | 作用 |
+|---|---|
+| `60-hy2vpn.yaml` | 撥號網卡不設 IP；LAN 網卡的預設路由 metric 調成 500，只拿來管理 |
+| `hinet.peer` | pppd 撥號設定，`persist` + `maxfail 0`，斷線會一直重撥 |
+| `pppoe-hinet.service` | 開機自動撥號 |
+| `ip-up.10-hy2vpn-route` | 撥通後把 `ppp0` 設成主要出口（metric 10）。pppd 看到系統已經有預設路由時不會自己加，所以要靠這支 hook |
+| `ip-up.20-duckdns` | 拿到新 IP 就立刻更新 DuckDNS，不用等容器每 5 分鐘一次的檢查 |
+
+`.env` 填好 `SERVER_DOMAIN`、`DUCKDNS_SUBDOMAINS`、`DUCKDNS_TOKEN`，然後用 `docker compose --profile duckdns up -d` 啟動。
+
 ## 客戶端
 
 `setup.sh` 會在 `client/` 產生：

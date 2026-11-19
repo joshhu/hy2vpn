@@ -1,0 +1,3 @@
+#!/bin/sh
+[ "$PPP_IFACE" = ppp0 ] || exit 0
+ip route del default dev ppp0 metric 10 2>/dev/null || true

@@ -1,0 +1,13 @@
+[Unit]
+Description=HiNet PPPoE (dynamic IP) on ens19
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/pppd call hinet nodetach
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

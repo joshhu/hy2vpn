@@ -1,0 +1,11 @@
+#!/bin/sh
+# PPPoE 換到新 IP 時立刻更新 DuckDNS（容器每 5 分鐘也會更新一次，這裡是讓切換更快）
+[ "$PPP_IFACE" = ppp0 ] || exit 0
+ENV=${HY2VPN_ENV:-/home/joshhu/hy2vpn/.env}
+SUB=$(sed -n "s/^DUCKDNS_SUBDOMAINS=//p" $ENV); TOKEN=$(sed -n "s/^DUCKDNS_TOKEN=//p" $ENV)
+[ -n "$SUB" ] && [ -n "$TOKEN" ] || exit 0
+( for i in 1 2 3 4 5; do
+    r=$(curl -s --max-time 10 "https://www.duckdns.org/update?domains=$SUB&token=$TOKEN&ip=$PPP_LOCAL")
+    [ "$r" = OK ] && { logger -t duckdns "updated $SUB -> $PPP_LOCAL"; exit 0; }
+    sleep 5
+  done; logger -t duckdns "update failed for $SUB" ) &

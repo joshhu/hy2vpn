@@ -1,0 +1,4 @@
+#!/bin/sh
+# PPPoE 連上後，讓 ppp0 成為主要出口（metric 10 < LAN 的 500）
+[ "$PPP_IFACE" = ppp0 ] || exit 0
+ip route replace default dev ppp0 metric 10

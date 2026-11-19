@@ -1,0 +1,15 @@
+# 中華電信光世代 PPPoE 動態 IP，從 ens19（PVE vmbr1，直連數據機）撥號
+plugin pppoe.so
+nic-ens19
+user "YOUR_ACCOUNT@hinet.net"
+noauth
+hide-password
+noipdefault
+persist
+maxfail 0
+holdoff 10
+mtu 1492
+mru 1492
+lcp-echo-interval 20
+lcp-echo-failure 3
+noipv6

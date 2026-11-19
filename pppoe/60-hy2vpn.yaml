@@ -1,0 +1,11 @@
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4-overrides:
+        route-metric: 500
+    ens19:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+      link-local: []
