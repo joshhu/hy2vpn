@@ -123,11 +123,29 @@ else
 fi
 printf '%s\n%s\n' "$VLESS_LINK" "$HY2_LINK" > client/links.txt
 
-# sing-box 客戶端（SFM / SFI / SFA / 桌面 sing-box）：hy2 直接信任這張自簽憑證，不用 insecure
+# sing-box 客戶端（iOS/macOS/Android 的 sing-box App、Windows 的 sing-box）
+#  - TUN 接管整台裝置的流量；大陸網站與內網直連，其他走代理
+#  - 伺服器網域用台灣 TWNIC 的 DoH（101.101.101.101）解析，避開中國的 DNS 污染
+#  - 一般網域查詢：大陸網域問 223.5.5.5，其他經由代理問 1.1.1.1
+#  - hy2 直接信任這張自簽憑證，不需要 insecure
 cat > client/sing-box-client.json <<EOF
 {
-  "log": { "level": "info" },
+  "log": { "level": "warn" },
+  "http_clients": [ { "tag": "via-proxy", "detour": "proxy" } ],
+  "dns": {
+    "servers": [
+      { "type": "https", "tag": "remote", "server": "1.1.1.1", "detour": "proxy" },
+      { "type": "udp", "tag": "cn", "server": "223.5.5.5" },
+      { "type": "https", "tag": "tw-doh", "server": "101.101.101.101" }
+    ],
+    "rules": [
+      { "rule_set": "geosite-cn", "server": "cn" }
+    ],
+    "final": "remote",
+    "strategy": "prefer_ipv4"
+  },
   "inbounds": [
+    { "type": "tun", "tag": "tun-in", "address": [ "172.19.0.1/30" ], "auto_route": true, "strict_route": true },
     { "type": "mixed", "tag": "mixed-in", "listen": "127.0.0.1", "listen_port": 2080 }
   ],
   "outbounds": [
@@ -137,6 +155,7 @@ cat > client/sing-box-client.json <<EOF
       "tag": "home-reality",
       "server": "$SERVER_DOMAIN",
       "server_port": $REALITY_PORT,
+      "domain_resolver": "tw-doh",
       "uuid": "$UUID",
       "flow": "xtls-rprx-vision",
       "tls": {
@@ -151,6 +170,7 @@ cat > client/sing-box-client.json <<EOF
       "tag": "home-hy2",
       "server": "$SERVER_DOMAIN",
       "server_port": $HY2_PORT,
+      "domain_resolver": "tw-doh",
       "password": "$HY2_PASSWORD",
       "tls": {
         "enabled": true,
@@ -161,10 +181,29 @@ cat > client/sing-box-client.json <<EOF
     },
     { "type": "direct", "tag": "direct" }
   ],
-  "route": { "final": "proxy" }
+  "route": {
+    "rules": [
+      { "action": "sniff" },
+      { "protocol": "dns", "action": "hijack-dns" },
+      { "ip_is_private": true, "outbound": "direct" },
+      { "rule_set": [ "geosite-cn", "geoip-cn" ], "outbound": "direct" }
+    ],
+    "rule_set": [
+      { "type": "remote", "tag": "geosite-cn", "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs" },
+      { "type": "remote", "tag": "geoip-cn", "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs" }
+    ],
+    "final": "proxy",
+    "auto_detect_interface": true,
+    "default_http_client": "via-proxy",
+    "default_domain_resolver": "cn"
+  },
+  "experimental": { "cache_file": { "enabled": true } }
 }
 EOF
 chmod 600 client/links.txt client/sing-box-client.json
+"$CLI" run --rm -v "$ROOT/client:/c:ro" "$IMG" check -c /c/sing-box-client.json && echo "客戶端設定檢查 OK"
 
 cat <<EOF
 

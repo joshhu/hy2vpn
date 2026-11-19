@@ -73,7 +73,11 @@ sudo ufw allow 443/tcp && sudo ufw allow 443/udp
 `setup.sh` 會在 `client/` 產生：
 
 - `links.txt`：`vless://` 與 `hysteria2://` 分享連結
-- `sing-box-client.json`：sing-box 客戶端完整設定，兩個節點用 selector 切換，hy2 直接信任自簽憑證
+- `sing-box-client.json`：sing-box 客戶端完整設定（需要 sing-box 1.14 以上），內容包括：
+  - TUN 模式，接管整台裝置的流量
+  - 分流：大陸網站和內網直連，其他走代理
+  - 伺服器網域用台灣 TWNIC 的 DoH 解析，避開中國的 DNS 污染
+  - `home-reality` 和 `home-hy2` 兩個節點可以切換，hy2 直接信任自簽憑證
 
 | 平台 | App | 匯入 |
 |---|---|---|
