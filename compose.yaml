@@ -1,0 +1,39 @@
+services:
+  sing-box:
+    image: ghcr.io/sagernet/sing-box:v1.14.4
+    container_name: sing-box
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./sing-box:/etc/sing-box:ro
+    command: ["-D", "/var/lib/sing-box", "-c", "/etc/sing-box/config.json", "run"]
+
+  # docker compose --profile duckdns up -d
+  duckdns:
+    profiles: ["duckdns"]
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Taipei}
+      SUBDOMAINS: ${DUCKDNS_SUBDOMAINS}
+      TOKEN: ${DUCKDNS_TOKEN}
+      UPDATE_IP: ipv4
+    volumes:
+      - ./duckdns:/config
+
+  # docker compose --profile cloudflare up -d
+  cloudflare-ddns:
+    profiles: ["cloudflare"]
+    image: favonia/cloudflare-ddns:1
+    container_name: cloudflare-ddns
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [all]
+    security_opt: [no-new-privileges:true]
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      DOMAINS: ${SERVER_DOMAIN}
+      PROXIED: "false"   # 一定要 false，橘色雲朵不轉送 Reality / UDP
+      IP6_PROVIDER: none

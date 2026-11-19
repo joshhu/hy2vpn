@@ -1,0 +1,11 @@
+# 個人設定與所有產生出來的金鑰，絕對不要進版控
+.env
+.state/
+sing-box/config.json
+sing-box/*.crt
+sing-box/*.key
+client/
+duckdns/
+tmpcode/
+.remember/
+.DS_Store
