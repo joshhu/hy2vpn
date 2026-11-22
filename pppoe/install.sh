@@ -18,6 +18,8 @@ done
 install -m 755 ip-up.10-hy2vpn-route   /etc/ppp/ip-up.d/10-hy2vpn-route
 install -m 755 ip-down.10-hy2vpn-route /etc/ppp/ip-down.d/10-hy2vpn-route
 install -m 755 ip-up.20-duckdns        /etc/ppp/ip-up.d/20-duckdns
+sed "s#__HY2VPN_ENV__#$(cd .. && pwd)/.env#" duckdns-update > /usr/local/sbin/hy2vpn-duckdns
+chmod 755 /usr/local/sbin/hy2vpn-duckdns
 sed "s/ens19/$NIC/g" pppoe-hinet.service > /etc/systemd/system/pppoe-hinet.service
 
 netplan apply

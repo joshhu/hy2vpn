@@ -45,6 +45,32 @@ sudo ufw allow 443/tcp && sudo ufw allow 443/udp
 
 主機在分享器後面的話，記得把 TCP/UDP 443 轉發到這台機器。
 
+## 在 PVE 的 LXC 上安裝（推薦）
+
+比 VM 輕很多：512MB 記憶體、4GB 硬碟就夠，sing-box 直接跑在系統上，不用 Docker。LXC 自己撥 PPPoE 拿中華電信的動態 IP，DuckDNS 讓客戶端追得到它。
+
+1. 在 PVE 主機上建立 LXC（unprivileged，Ubuntu 26.04）：
+
+   ```bash
+   CTID=107 SSH_KEY=/root/.ssh/mykey.pub WAN_BRIDGE=vmbr1 lxc/create-ct.sh
+   ```
+
+   腳本會在主機上載入 `pppoe` 和 `tcp_bbr` 核心模組（寫進 `/etc/modules-load.d/ppp.conf`），把 `/dev/ppp` 傳進 LXC，開 `nesting`（Ubuntu 26.04 的 systemd 需要）。`eth0` 接區網拿來管理，`eth1` 接直通數據機的 bridge 拿來撥號。
+
+   DNS 預設指定 `1.1.1.1 8.8.8.8`。不指定的話 LXC 會繼承主機的設定，主機裝了 Tailscale 時會拿到 `100.100.100.100`，在 LXC 裡連不到。
+
+2. 把 repo 放進 LXC（例如 `/root/hy2vpn`），填好 `.env`，然後執行：
+
+   ```bash
+   PPPOE_USER=12345678@hinet.net PPPOE_PASS=xxxx lxc/install.sh
+   ```
+
+   會裝好 `ppp` 和 `compose.yaml` 指定版本的 sing-box（官方 .deb），把 `/etc/sing-box` 連結到 repo 的 `sing-box/`，再設定 PPPoE、DuckDNS 和開機自動啟動。`.env` 會被改成 `CONTAINER_CLI=native`，之後 `scripts/setup.sh` 直接用系統上的 sing-box，改完設定 `systemctl restart sing-box`。
+
+   DuckDNS 由 `ip-up` hook 在拿到新 IP 時立刻更新，另外 `duckdns.timer` 每 10 分鐘補一次。
+
+從舊主機搬過來的話，把 `.env`、`.state/`、`sing-box/config.json`、`sing-box/hy2.*` 一起複製過去，金鑰不變，客戶端設定就不用重新匯入。
+
 ## 讓 VM 自己撥 PPPoE（PVE + 中華電信動態 IP）
 
 中華電信光世代可以同時撥多條動態 IP，所以可以讓這台 VM 自己撥一條，取得專屬的公網 IP，再搭配 DuckDNS 讓客戶端追得到它。
@@ -110,6 +136,9 @@ compose.yaml            sing-box + 兩個可選的 DDNS 容器（duckdns / cloud
 scripts/setup.sh        產生金鑰、憑證、設定與客戶端連結
 scripts/check-target.sh 檢查 Reality 偽裝目標
 scripts/host-tune.sh    BBR 與 UDP buffer 調校
+lxc/create-ct.sh        在 PVE 主機上建立 LXC
+lxc/install.sh          在 LXC 裡安裝 sing-box、PPPoE、DuckDNS（不用 Docker）
+pppoe/                  PPPoE 撥號設定與 hook（VM 和 LXC 共用）
 ```
 
 所有產生出來的檔案（`.env`、`.state/`、`sing-box/config.json`、`sing-box/hy2.*`、`client/`）都已經寫進 `.gitignore`。

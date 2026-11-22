@@ -21,7 +21,14 @@ LISTEN_ADDR=${LISTEN_ADDR:-::}
 CLI=${CONTAINER_CLI:-docker}
 IMG=$(awk '/image: ghcr.io\/sagernet\/sing-box/ {print $2; exit}' compose.yaml)
 
-sb() { "$CLI" run --rm "$IMG" "$@" 2>/dev/null; }
+# CONTAINER_CLI=native：直接用系統上的 sing-box（LXC 安裝），/etc/sing-box 要指到 repo 的 sing-box/
+if [ "$CLI" = native ]; then
+  sb() { sing-box "$@" 2>/dev/null; }
+  sb_check() { sing-box check -c "$ROOT/$1/$2"; }
+else
+  sb() { "$CLI" run --rm "$IMG" "$@" 2>/dev/null; }
+  sb_check() { "$CLI" run --rm -v "$ROOT/$1:/c:ro" "$IMG" check -c "/c/$2"; }
+fi
 
 mkdir -p .state sing-box client
 chmod 700 .state client
@@ -106,7 +113,8 @@ EOF
 chmod 644 sing-box/config.json
 
 echo "檢查設定…"
-"$CLI" run --rm -v "$ROOT/sing-box:/etc/sing-box:ro" "$IMG" check -c /etc/sing-box/config.json
+if [ "$CLI" = native ]; then sing-box check -c /etc/sing-box/config.json
+else "$CLI" run --rm -v "$ROOT/sing-box:/etc/sing-box:ro" "$IMG" check -c /etc/sing-box/config.json; fi
 
 # ---------- 客戶端 ----------
 PIN=""
@@ -203,7 +211,7 @@ cat > client/sing-box-client.json <<EOF
 }
 EOF
 chmod 600 client/links.txt client/sing-box-client.json
-"$CLI" run --rm -v "$ROOT/client:/c:ro" "$IMG" check -c /c/sing-box-client.json && echo "客戶端設定檢查 OK"
+sb_check client sing-box-client.json && echo "客戶端設定檢查 OK"
 
 cat <<EOF
 

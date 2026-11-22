@@ -1,0 +1,9 @@
+[Unit]
+Description=Update DuckDNS every 10 minutes (fallback for the ip-up hook)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

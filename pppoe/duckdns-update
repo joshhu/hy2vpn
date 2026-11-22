@@ -1,0 +1,15 @@
+#!/bin/sh
+# 把 DuckDNS 指到 ppp0 目前的 IP。
+# 用法：hy2vpn-duckdns [IP]（不給 IP 就讀 ppp0）。ip-up hook 和 systemd timer 都呼叫這支。
+ENV=__HY2VPN_ENV__
+IP=${1:-$(ip -4 -o addr show ppp0 2>/dev/null | awk '{print $4}' | cut -d/ -f1)}
+[ -n "$IP" ] || exit 0
+SUB=$(sed -n "s/^DUCKDNS_SUBDOMAINS=//p" "$ENV"); TOKEN=$(sed -n "s/^DUCKDNS_TOKEN=//p" "$ENV")
+[ -n "$SUB" ] && [ -n "$TOKEN" ] || exit 0
+for i in 1 2 3 4 5; do
+  r=$(curl -s --max-time 10 "https://www.duckdns.org/update?domains=$SUB&token=$TOKEN&ip=$IP")
+  [ "$r" = OK ] && { logger -t duckdns "updated $SUB -> $IP"; exit 0; }
+  sleep 5
+done
+logger -t duckdns "update failed for $SUB"
+exit 1

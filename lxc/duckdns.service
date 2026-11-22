@@ -1,0 +1,7 @@
+[Unit]
+Description=Update DuckDNS to the current ppp0 IP
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/hy2vpn-duckdns
